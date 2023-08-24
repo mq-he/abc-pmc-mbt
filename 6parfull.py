@@ -1,6 +1,8 @@
 # This script is for inferring parameters in the irreducible process using
 # ABC-PMC with nine selected summary statistics
 
+# consider nLTT from the 20th iteration
+
 
 from ete3 import Tree
 import random
@@ -21,10 +23,10 @@ q12 = 0.5
 q21 = 0.25
 
 #initialise the size of the simulation
-iternum = 100
-num = 100
-size=50
-M=100
+iternum = 100 # number of trees in the observed dataset
+num = 100 # number of trees in each simulated dataset
+size= 50 # tree size
+M=100 # number of the accepted samples in each iteration
 T=10
 
 def weighted_quantile(values, quantiles, sample_weight=None, 
@@ -751,7 +753,7 @@ while len(accept1)<200:
         q12sim = random.uniform(0,5)
         q21sim = random.uniform(0,5)
         w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim])  
-        while w<=0.1:
+        while w<=0:
             birth1sim = random.uniform(0,5)
             birth2sim = random.uniform(0,5)
             death1sim = random.uniform(0,5)
@@ -761,7 +763,7 @@ while len(accept1)<200:
             w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim]) 
         r=0
         length = 0
-        while flag == 0 or length != 50:
+        while flag == 0 or length != size:
             t, flag = birth_death_tree2([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim], nsize=size, max_time=30)
             r+=1
             length = len(t.get_leaves())
@@ -914,13 +916,13 @@ for k in range(1,T):
             ind = random.choices(index, weights=weight, k=1)[0]
             [birth1sim,birth2sim,death1sim,death2sim,q12sim,q21sim]=accept.T[ind]+multivariate_normal.rvs(np.zeros(6),covmat)
             w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim])  
-            while w<=0 or min(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)<=0.01 or max(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)>=5:
+            while w<=0 or min(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)<=0.0 or max(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)>=5:
                 ind = random.choices(index, weights=weight, k=1)[0]
                 [birth1sim,birth2sim,death1sim,death2sim,q12sim,q21sim]=accept.T[ind]+multivariate_normal.rvs(np.zeros(6),covmat)
                 w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim]) 
             r=0
             length = 0
-            while flag == 0 or length != 50:
+            while flag == 0 or length != size:
                 t, flag = birth_death_tree2([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim], nsize=size, max_time=30)
                 r+=1
                 length = len(t.get_leaves())
@@ -1035,7 +1037,7 @@ for k in range(1,T):
 
 
 
-for k in range(T,3*T):
+for k in range(T,2*T):
 
     n = len(array1)
     index = list(range(n))
@@ -1047,6 +1049,176 @@ for k in range(T,3*T):
     scale4 = sqrt(2*weighted_var(array4, weight))
     scale5 = sqrt(2*weighted_var(array5, weight))
     scale6 = sqrt(2*weighted_var(array6, weight))
+    
+    accept = np.stack((accept1,accept2,accept3,accept4,accept5,accept6))
+    covmat = 2*np.cov(accept, aweights=weight)
+
+    if accept_rate >= 0.03:
+        tol_dist = math.exp(-0.2)*tol_dist
+        tol_imb = math.exp(-0.2)*tol_imb
+        tol_imb1 = math.exp(-0.2)*tol_imb1
+        tol_imb2 = math.exp(-0.2)*tol_imb2
+        tol_span = math.exp(-0.2)*tol_span
+        tol_prop = math.exp(-0.2)*tol_prop
+        tol_stat = math.exp(-0.2)*tol_stat
+        tol_stat2 = math.exp(-0.2)*tol_stat2
+        z += 1
+        accept_rate=0
+    
+
+    #tol_span = 1.5
+
+    accept1 = []
+    accept2 = []
+    accept3 = []
+    accept4 = []
+    accept5 = []
+    accept6 = []
+    domtemp = []
+    
+    
+    N=0
+    while len(accept1)<M:
+        do = True
+        while do:
+            do = False
+            flag = 0
+            ind = random.choices(index, weights=weight, k=1)[0]
+            [birth1sim,birth2sim,death1sim,death2sim,q12sim,q21sim]=accept.T[ind]+multivariate_normal.rvs(np.zeros(6),covmat)
+            w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim])  
+            while w<=0 or min(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)<=0.0 or max(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)>=5:
+                ind = random.choices(index, weights=weight, k=1)[0]
+                [birth1sim,birth2sim,death1sim,death2sim,q12sim,q21sim]=accept.T[ind]+multivariate_normal.rvs(np.zeros(6),covmat)
+                w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim]) 
+            r=0
+            length = 0
+            while flag == 0 or length != size:
+                t, flag = birth_death_tree2([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim], nsize=size, max_time=30)
+                r+=1
+                length = len(t.get_leaves())
+                if r == 5:
+                    do = True
+                    break
+                
+        assert flag == 1
+        sim_array, sim_resp = nabsdiff(t)
+        tspan=[ignoreRoot(step_array(t))[-1]]
+        dist=[PD(t)]
+        bala = [imbalance(t)]
+        bala1 = [imb1(t)]
+        bala2 = [imb2(t)]
+        proptemp = [ratio(t)]
+        stattemp = [ratiodist(t)]
+        stat2temp = [ratiodist(t,phase=2)]
+        #about imb1!=0
+        tspann0=[]
+        distp1=[]
+        if numphase1(t)!=0:
+            tspann0.append(ignoreRoot(step_array(t))[-1])
+            distp1.append(mdistp1(t))
+        N+=1
+        for j in range(1,num):
+            flag = 0
+            while flag == 0:
+                tsim, flag = birth_death_tree2([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim], nsize=size)
+            assert flag == 1
+            init_array, init_resp = nabsdiff(tsim)
+            sim_array, sim_resp = sumdist_array(init_array, sim_array, init_resp, sim_resp)
+            tspan.append(ignoreRoot(step_array(tsim))[-1])
+            dist.append(PD(tsim))
+            bala.append(imbalance(tsim))
+            bala1.append(imb1(tsim))
+            bala2.append(imb2(tsim))
+            proptemp.append(ratio(tsim))
+            stattemp.append(ratiodist(tsim))
+            stat2temp.append(ratiodist(tsim,phase=2))
+            if numphase1(tsim)!=0:
+                tspann0.append(ignoreRoot(step_array(tsim))[-1])
+                distp1.append(mdistp1(tsim))
+        sim_resp = sim_resp/num
+        
+        mdist = mean(dist)
+        mbala = mean(bala)
+        mbala1 = mean(bala1)
+        mbala2 = mean(bala2)
+        mtspan = mean(tspan)
+        mprop = mean(proptemp)
+        mstat = mean(stattemp)
+        mstat2 = mean(stat2temp)
+        if abs(mtspan-ex_span) <= tol_span and abs(mdist-exdist) <= tol_dist and abs(mbala-ex_imb)<=tol_imb and abs(mbala1-ex_imb1)<=tol_imb1 and abs(mbala2-ex_imb2)<=tol_imb2 and abs(mprop-ex_prop)<=tol_prop and abs(mstat-ex_stat)<=tol_stat and abs(mstat2-ex_stat2)<=tol_stat2:
+            accept1.append(birth1sim)
+            accept2.append(birth2sim)
+            accept3.append(death1sim)
+            accept4.append(death2sim)
+            accept5.append(q12sim)
+            accept6.append(q21sim)
+            domtemp.append(dom([birth1sim,birth2sim],[death1sim,death2sim],[q12sim,q21sim]))
+
+            invw=0
+            parsim = np.array([birth1sim,birth2sim,death1sim,death2sim, q12sim,q21sim])
+            for item in range(len(weight)):
+                par = np.array([array1[item],array2[item],array3[item],array4[item],array5[item],array6[item]])
+                invw += weight[item]*multivariate_normal.pdf(par, mean=parsim, cov=covmat)
+            weightnewsim = 1/invw
+            weightnew.append(weightnewsim)
+    accept_rate = len(accept1)/N
+    weightnew = list(np.array(weightnew)/sum(weightnew))
+
+    meanseq1.append(mean(accept1))
+    meanseq2.append(mean(accept2))
+    meanseq3.append(mean(accept3))
+    meanseq4.append(mean(accept4))
+    meanseq5.append(mean(accept5))
+    meanseq6.append(mean(accept6))
+    dommean.append(weighted_mean(domtemp, weightnew))
+
+    wmeanseq1.append(weighted_mean(accept1, weightnew))
+    wmeanseq2.append(weighted_mean(accept2, weightnew))
+    wmeanseq3.append(weighted_mean(accept3, weightnew))
+    wmeanseq4.append(weighted_mean(accept4, weightnew))
+    wmeanseq5.append(weighted_mean(accept5, weightnew))
+    wmeanseq6.append(weighted_mean(accept6, weightnew))
+    rate.append(accept_rate)
+
+    dommean_u.append(weighted_quantile(domtemp, 0.75, sample_weight=weightnew))
+    weighted_q1u.append(weighted_quantile(accept1, 0.75, sample_weight=weightnew))
+    weighted_q2u.append(weighted_quantile(accept2, 0.75, sample_weight=weightnew))
+    weighted_q3u.append(weighted_quantile(accept3, 0.75, sample_weight=weightnew))
+    weighted_q4u.append(weighted_quantile(accept4, 0.75, sample_weight=weightnew))
+    weighted_q5u.append(weighted_quantile(accept5, 0.75, sample_weight=weightnew))
+    weighted_q6u.append(weighted_quantile(accept6, 0.75, sample_weight=weightnew))
+
+    dommean_l.append(weighted_quantile(domtemp, 0.25, sample_weight=weightnew))
+    weighted_q1l.append(weighted_quantile(accept1, 0.25, sample_weight=weightnew))
+    weighted_q2l.append(weighted_quantile(accept2, 0.25, sample_weight=weightnew))
+    weighted_q3l.append(weighted_quantile(accept3, 0.25, sample_weight=weightnew))
+    weighted_q4l.append(weighted_quantile(accept4, 0.25, sample_weight=weightnew))
+    weighted_q5l.append(weighted_quantile(accept5, 0.25, sample_weight=weightnew))
+    weighted_q6l.append(weighted_quantile(accept6, 0.25, sample_weight=weightnew))
+
+    array1=accept1
+    array2=accept2
+    array3=accept3
+    array4=accept4
+    array5=accept5
+    array6=accept6
+
+    weight = weightnew
+
+    print('\n\n'+'z='+str(z)+',k='+str(k))
+    print('\n\n'+'weighted_domu='+str(dommean_u)+'\n\n'+'weighted_dom='+str(dommean)+'\n\n'+'weighted_doml='+str(dommean_l))
+    print('\n\n'+'weighted_q1u='+str(weighted_q1u)+'\n\n'+'weighted_q2u='+str(weighted_q2u)+'\n\n'+'weighted_q3u='+str(weighted_q3u)+'\n\n'+'weighted_q4u='+str(weighted_q4u)+'\n\n'+'weighted_q5u='+str(weighted_q5u)+'\n\n'+'weighted_q6u='+str(weighted_q6u))
+    print('\n\n'+'weighted_q1l='+str(weighted_q1l)+'\n\n'+'weighted_q2l='+str(weighted_q2l)+'\n\n'+'weighted_q3l='+str(weighted_q3l)+'\n\n'+'weighted_q4l='+str(weighted_q4l)+'\n\n'+'weighted_q5l='+str(weighted_q5l)+'\n\n'+'weighted_q6l='+str(weighted_q6l))
+    print('\n\n'+'weighted_meanseq1='+str(wmeanseq1)+'\n\n'+'weighted_meanseq2='+str(wmeanseq2)+'\n\n'+'weighted_meanseq3='+str(wmeanseq3)+'\n\n'+'weighted_meanseq4='+str(wmeanseq4)+'\n\n'+'weighted_meanseq5='+str(wmeanseq5), 'weighted_meanseq6='+str(wmeanseq6))
+    print('\n\n'+'meanseq1='+str(meanseq1)+'\n\n'+'meanseq2='+str(meanseq2)+'\n\n'+'meanseq3='+str(meanseq3)+'\n\n'+'meanseq4='+str(meanseq4)+'\n\n'+'meanseq5='+str(meanseq5)+'\n\n'+'meanseq6='+str(meanseq6))
+    print('\n\n'+'accept1='+str(array1)+'\n\n'+'accept2='+str(array2)+'\n\n'+'accept3='+str(array3)+'\n\n'+'accept4='+str(array4)+'\n\n'+'accept5='+str(array5)+'\n\n'+'accept6='+str(array6))
+    print('\n\n'+'weight='+str(list(weight))+'\n\n'+'rate='+str(rate), flush=True)
+
+for k in range(2*T,3*T):
+
+    n = len(array1)
+    index = list(range(n))
+    weightnew = []
     
     accept = np.stack((accept1,accept2,accept3,accept4,accept5,accept6))
     covmat = 2*np.cov(accept, aweights=weight)
@@ -1085,7 +1257,7 @@ for k in range(T,3*T):
             ind = random.choices(index, weights=weight, k=1)[0]
             [birth1sim,birth2sim,death1sim,death2sim,q12sim,q21sim]=accept.T[ind]+multivariate_normal.rvs(np.zeros(6),covmat)
             w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim])  
-            while w<=0.1 or min(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)<=0.01 or max(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)>=5:
+            while w<=0 or min(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)<=0.0 or max(birth1sim, birth2sim,death1sim,death2sim,q12sim,q21sim)>=5:
                 ind = random.choices(index, weights=weight, k=1)[0]
                 [birth1sim,birth2sim,death1sim,death2sim,q12sim,q21sim]=accept.T[ind]+multivariate_normal.rvs(np.zeros(6),covmat)
                 w = dom([birth1sim, birth2sim], [death1sim, death2sim], [q12sim,q21sim]) 
