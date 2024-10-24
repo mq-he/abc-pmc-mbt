@@ -18,9 +18,10 @@ from scipy.stats import multivariate_normal
 import sys
 import os
 
-# Get the path of the current script
-PATH = os.path.abspath(__file__)
-sys.path.append(PATH)
+FILEPATH = os.path.abspath(__file__)
+PATH = os.path.dirname(FILEPATH)
+
+# sys.path.append(PATH)
 
 import mbt_6p_simulator
 
