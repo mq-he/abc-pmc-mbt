@@ -19,10 +19,11 @@ from scipy.stats import multivariate_normal
 import sys
 import time
 import gc
+import os
 
-# PATH = '/Users/mingqih1/Documents/Master Project/mbt_updated'
-PATH = '/home/mingqi/pycode/mbt_updated'
-sys.path.append(PATH)
+# Get the path of the current script
+FILEPATH = os.path.abspath(__file__)
+PATH = os.path.dirname(FILEPATH)
 
 import mbt_6p_simulator
 
@@ -237,8 +238,8 @@ rank = comm.Get_rank()
 if rank == 0:
     # we use pseudo-observation generated from the default parameter values
     # read the tree from newick file
-    t_read = Tree(PATH+'/mbt_newick_obs/tree_size5000_test'+str(trial_index)+'.txt')
-    t_read_phase = np.loadtxt(PATH+'/mbt_newick_obs/phase_size5000_test'+str(trial_index)+'.csv', delimiter=",")
+    t_read = Tree(PATH+'/newick_obs/tree_size5000_test'+str(trial_index)+'.txt')
+    t_read_phase = np.loadtxt(PATH+'/newick_obs/phase_size5000_test'+str(trial_index)+'.csv', delimiter=",")
     # assign the phases
     for leaf in t_read.get_leaves():
         index = int(leaf.name)-1
@@ -393,7 +394,7 @@ if rank == 0:
     domtemp = domtemp[:, np.newaxis]
 
     results_all = np.hstack((array_all, domtemp, np.ones((200,1))/200)) # 6 parameters, growth rate, weights, with shape=(200,8)
-    np.savetxt(PATH+'/mbt_updated_results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")
+    np.savetxt(PATH+'/results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")
     print(f'duration={duration}')
     print('\n\n'+'rate='+str(rate), flush=True)
 
@@ -500,7 +501,7 @@ for k in range(1,3):
         # hstack only works for array with same number of dimension, shape=(M, 1), same for domtemp 
 
         results_all = np.hstack((accept_all, domtemp[:,np.newaxis], weightnew[:,np.newaxis])) # 6 parameters, growth rate, weights, with shape=(M,8)
-        np.savetxt(PATH+'/mbt_updated_results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
+        np.savetxt(PATH+'/results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
         print('\n\n'+'k='+str(k), flush=True)
 
         array_all = accept_all
@@ -659,7 +660,7 @@ for k in range(3,T):
         
         # hstack only works for array with same number of dimension, shape=(M, 1), same for domtemp 
         results_all = np.hstack((accept_all, domtemp[:,np.newaxis], weightnew[:,np.newaxis])) # 6 parameters, growth rate, weights, with shape=(M,8)
-        np.savetxt(PATH+'/mbt_updated_results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
+        np.savetxt(PATH+'/results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
         print('\n\n'+'k='+str(k), flush=True)
         print(f'duration={duration}', flush=True)
 
@@ -831,7 +832,7 @@ for k in range(T,3*T):
         
         # hstack only works for array with same number of dimension, shape=(M, 1), same for domtemp 
         results_all = np.hstack((accept_all, domtemp[:,np.newaxis], weightnew[:,np.newaxis])) # 6 parameters, growth rate, weights, with shape=(M,8)
-        np.savetxt(PATH+'/mbt_updated_results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
+        np.savetxt(PATH+'/results/mbt_parallel/mbt_tolrate_size5000_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
         print('\n\n'+'k='+str(k), flush=True)
         print(f'duration={duration}', flush=True)
 

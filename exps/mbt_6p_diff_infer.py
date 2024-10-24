@@ -18,6 +18,7 @@ from scipy.stats import multivariate_normal
 import sys
 import os
 
+# Get the path of the current script
 FILEPATH = os.path.abspath(__file__)
 PATH = os.path.dirname(FILEPATH)
 
