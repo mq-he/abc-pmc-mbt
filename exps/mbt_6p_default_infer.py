@@ -19,14 +19,16 @@ import sys
 import os
 
 # Get the path of the current script
-PATH = os.path.abspath(__file__)
-sys.path.append(PATH)
+FILEPATH = os.path.abspath(__file__)
+PATH = os.path.dirname(FILEPATH)
+
+# sys.path.append(PATH)
 
 import mbt_6p_simulator
 
 # read obs values from csv file
 trial_index = int(sys.argv[1]) # filename
-obs_vals = np.loadtxt(PATH+'/mbt_updated_obs/mbt_n100_s50_default_t'+str(trial_index)+'.csv', delimiter=",") # shape=(num_tree, N_SUMSTA+2*treesize+8)
+obs_vals = np.loadtxt(PATH+'/obs/mbt_n100_s50_default_t'+str(trial_index)+'.csv', delimiter=",") # shape=(num_tree, N_SUMSTA+2*treesize+8)
 
 # true parameter values used in the simulation study
 birth1, birth2, death1, death2, q12, q21 = [3,1,2,0.5,0.5,0.25]
@@ -229,7 +231,7 @@ k=0 # iteration index
 
 rate = [accept_rate]
 results_all = np.vstack((accept1, accept2, accept3, accept4, accept5, accept6, domtemp, np.ones(200)/200)) # 6 parameters, growth rate, weights, with shape=(200,8)
-np.savetxt(PATH+'/mbt_updated_results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")
+np.savetxt(PATH+'/results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")
 print('\n\n'+'rate='+str(rate), flush=True)
 
 z=0 # record the tolerance level
@@ -314,7 +316,7 @@ for k in range(1,T):
 
     rate.append(accept_rate)
     results_all = np.vstack((accept1, accept2, accept3, accept4, accept5, accept6, domtemp, weightnew)) # 6 parameters, growth rate, weights, with shape=(200,8)
-    np.savetxt(PATH+'/mbt_updated_results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
+    np.savetxt(PATH+'/results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
     print('\n\n'+'z='+str(z)+',k='+str(k))
     print('\n\n'+'rate='+str(rate), flush=True)
 
@@ -411,7 +413,7 @@ for k in range(T,2*T):
 
     rate.append(accept_rate)
     results_all = np.vstack((accept1, accept2, accept3, accept4, accept5, accept6, domtemp, weightnew)) # 6 parameters, growth rate, weights, with shape=(200,8)
-    np.savetxt(PATH+'/mbt_updated_results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
+    np.savetxt(PATH+'/results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
     print('\n\n'+'z='+str(z)+',k='+str(k))
     print('\n\n'+'rate='+str(rate), flush=True)
 
@@ -502,7 +504,7 @@ for k in range(2*T,3*T):
 
     rate.append(accept_rate)
     results_all = np.vstack((accept1, accept2, accept3, accept4, accept5, accept6, domtemp, weightnew)) # 6 parameters, growth rate, weights, with shape=(200,8)
-    np.savetxt(PATH+'/mbt_updated_results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
+    np.savetxt(PATH+'/results/mbt_n100_s50_default_t'+str(trial_index)+'_iter'+str(k)+'.csv', results_all, delimiter=",")    
     print('\n\n'+'z='+str(z)+',k='+str(k))
     print('\n\n'+'rate='+str(rate), flush=True)
 
