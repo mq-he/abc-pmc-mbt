@@ -10,6 +10,68 @@ from scipy.stats import multivariate_normal
 from ete3 import Tree
 import random
 
+def weighted_quantile(values, quantiles, sample_weight=None, 
+                      values_sorted=False, old_style=False):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param quantiles: array-like with many quantiles needed
+    :param sample_weight: array-like of the same length as `array`
+    :param values_sorted: bool, if True, then will avoid sorting of
+        initial array
+    :param old_style: if True, will correct output to be consistent
+        with numpy.percentile.
+    :return: numpy.array with computed quantiles.
+    """
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+    if sample_weight is None:
+        sample_weight = np.ones(len(values))
+    sample_weight = np.array(sample_weight)
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), \
+        'quantiles should be in [0, 1]'
+
+    if not values_sorted:
+        sorter = np.argsort(values)
+        values = values[sorter]
+        sample_weight = sample_weight[sorter]
+
+    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
+    if old_style:
+        # To be convenient with numpy.percentile
+        weighted_quantiles -= weighted_quantiles[0]
+        weighted_quantiles /= weighted_quantiles[-1]
+    else:
+        weighted_quantiles /= np.sum(sample_weight)
+    return np.interp(quantiles, weighted_quantiles, values)
+
+def weighted_mean(array,weights):
+    """
+    Return the weighted average.
+
+    array, weights -- lists.
+    """
+    numerator = sum([array[i]*weights[i] for i in range(len(array))])
+    denominator = sum(weights)
+
+    return numerator/denominator
+
+
+def weighted_var(array,weights):
+    """
+    Return the unbiased weighted variance.
+
+    array, weights -- lists.
+    """
+    v1 = sum(weights)
+    v2 = sum([weights[i]**2 for i in range(len(weights))])
+
+    wmean = weighted_mean(array,weights)
+    numerator = sum([((array[i]-wmean)**2)*weights[i] for i in range(len(array))])
+    denominator = v1-(v2/v1)
+
+    return numerator/denominator
+
 def tree_height(t, ignore_root=True):
     """Compute the tree height of the given tree
     """
@@ -180,35 +242,6 @@ def sumdist_array(a,b,ya,yb):
     return array, resp
 
 
-
-
-def weighted_mean(array,weights):
-    """
-    Return the weighted average.
-
-    array, weights -- lists.
-    """
-    numerator = sum([array[i]*weights[i] for i in range(len(array))])
-    denominator = sum(weights)
-
-    return numerator/denominator
-
-
-def weighted_var(array,weights):
-    """
-    Return the unbiased weighted variance.
-
-    array, weights -- lists.
-    """
-    v1 = sum(weights)
-    v2 = sum([weights[i]**2 for i in range(len(weights))])
-
-    wmean = weighted_mean(array,weights)
-    numerator = sum([((array[i]-wmean)**2)*weights[i] for i in range(len(array))])
-    denominator = v1-(v2/v1)
-
-    return numerator/denominator
-
 # mod2
 def NodeDelete(root):
     for leaf in root.get_leaves():
@@ -233,22 +266,6 @@ def remove_extinct(root):
             node.detach()
 
 
-def delete_single_child_internal_false(t): 
-    """Utility function that removes internal nodes
-    with a single child from tree"""
-
-    for node in t.traverse("postorder"):
-        
-        if((not node.is_leaf() and not node.is_root()) and len(node.get_children())<2):
-            #child = node.get_children()[0]
-            #child.dist = child.dist + node.dist
-            node.delete()
-
-    if len(t.get_children()) == 1:
-        t.height = t.children[0].height
-        #t.dist = t.children[0].dist
-        t.children = t.children[0].children
-
 def delete_single_child_internal(t): 
     """Utility function that removes internal nodes
     with a single child from tree"""
@@ -260,7 +277,7 @@ def delete_single_child_internal(t):
             #child.dist = child.dist + node.dist
             node.delete()
 
-    if len(t.get_children()) == 1: # corrected
+    if len(t.get_children()) == 1: # corrected, the case where the root only has one child
         t.height = t.children[0].height
         #t.dist = t.children[0].dist
         t.children[0].delete()
@@ -713,7 +730,7 @@ def numphase2(parent):
             num = num + 1
     return num
 
-# only for reducible process
+####################### only for reducible process ######################################################
 def mdistp1(t):
     seq=[]
     for node in t.traverse():
@@ -721,6 +738,99 @@ def mdistp1(t):
             seq.append(node.dist)
     return mean(seq)
 
+def generate_mbt_ind_reducible_update(tree_ind):
+    '''
+    Compute the associated statistics for a single tree. 
+    Input:
+        samples: a tree object
+    Output:
+        a 1d array, which records the associated summary statistics for one sample, with shape=(N_SUMSTA,)
+        For reducible process, two statistics are designed for trees that contain phase-1 leaves, 
+        if the simulated tree does not have phase-1 leaves, return 0 for these two statistics.
+    '''
+    balsim, bal1sim, bal2sim=balance(tree_ind)
+    tspansim=tree_height(tree_ind)
+    distancesim=PD(tree_ind)
+    tspann0, distp1 = 0, 0
+    if numphase1(tree_ind)>0:
+        tspann0 = tree_height(tree_ind) # the tree height for trees with phase-1 leaves
+        distp1 = mdistp1(tree_ind)
+
+    return np.array([balsim, bal1sim, bal2sim, tspansim, distancesim, tspann0, distp1])
+
+def generate_mbt_data_reducible_update(sample, num_tree=100, treesize = 50, startphase = 1, r=20):
+    '''
+    Each simulated dataset has `num_tree` tree each with `treesize` leaves, starting in phase `startphase`. 
+    The process will run `r` times until it finds one surviving tree, otherwise it will terminate, giving all zeros.
+    Input:
+        sample: a 1d array, which records the parameter values for one sample, with shape=(N_PAR,)
+    Output:
+        an arrays, which records the associated summary statistics for one sample, with shape=(N_SUMSTA,)
+    '''
+    
+    # unpack the parameter values
+    b1sim, b2sim, d1sim, d2sim, q12sim, q21sim = list(sample)
+
+    # simulation process, keep generate sample until we have one surviving tree
+    output = np.zeros(7) # seven statistics for reducible process (exclude nLTT) 
+    tree_sim, flag_sim = birth_death_tree2([b1sim, b2sim], [d1sim, d2sim], [q12sim, q21sim], nsize=treesize, start=startphase, r=r)
+    if flag_sim==0:
+        return output
+    else:
+        output = generate_mbt_ind_reducible_update(tree_sim) # stats calculation
+        count_tree_p1 = numphase1(tree_sim)>0 # count the number of trees with phase-1 leaves
+        for j in range(1, num_tree):
+            flag_sim = 0
+            while flag_sim==0:
+                tree_sim, flag_sim = birth_death_tree2([b1sim, b2sim], [d1sim, d2sim], [q12sim, q21sim], nsize=treesize, start=startphase, r=r)
+            count_tree_p1 += numphase1(tree_sim)>0
+            output += generate_mbt_ind_reducible_update(tree_sim) # stats calculation
+        output[:5] = output[:5]/num_tree
+        if output[5]>0:
+            assert count_tree_p1>0, f'count_tree_p1={count_tree_p1}'
+            output[5:] = output[5:]/count_tree_p1
+        return output
+
+def generate_mbt_data_reducible_update_nLTT(sample, num_tree=100, treesize = 50, startphase = 1, r=20, start_nLTT=2):
+    '''
+    Each simulated dataset has `num_tree` tree each with `treesize` leaves, starting in phase `startphase`. 
+    The process will run `r` times until it finds one surviving tree, otherwise it will terminate, giving all zeros.
+    Input:
+        sample: a 1d array, which records the parameter values for one sample, with shape=(N_PAR,)
+    Output:
+        three arrays, one of which records the associated summary statistics for one sample, with shape=(N_SUMSTA,),
+        the other two record the nLTT curve, zero if the tree go extinct
+    
+    '''
+    
+    # unpack the parameter values
+    b1sim, b2sim, d1sim, d2sim, q12sim, q21sim = list(sample)
+
+    # simulation process, keep generate sample until we have one surviving tree
+    output = np.zeros(7) 
+    sim_array, sim_resp = np.zeros(2) 
+    tree_sim, flag_sim = birth_death_tree2([b1sim, b2sim], [d1sim, d2sim], [q12sim, q21sim], nsize=treesize, start=startphase, r=r)
+    if flag_sim==0:
+        return output, sim_array, sim_resp
+    else:
+        output = generate_mbt_ind_reducible_update(tree_sim) # stats calculation
+        sim_array, sim_resp = nabsdiff(tree_sim, start=start_nLTT)  # nLTT computation
+        count_tree_p1 = numphase1(tree_sim)>0 # count the number of trees with phase-1 leaves
+        for j in range(1, num_tree):
+            flag_sim = 0
+            while flag_sim==0:
+                tree_sim, flag_sim = birth_death_tree2([b1sim, b2sim], [d1sim, d2sim], [q12sim, q21sim], nsize=treesize, start=startphase, r=r)
+            count_tree_p1 += numphase1(tree_sim)>0
+            output += generate_mbt_ind_reducible_update(tree_sim) # stats calculation
+            init_array, init_resp = nabsdiff(tree_sim, start=start_nLTT) # nLTT computation
+            sim_array, sim_resp = sumdist_array(init_array, sim_array, init_resp, sim_resp)
+        output[:5] = output[:5]/num_tree
+        if output[5]>0:
+            assert count_tree_p1>0, f'count_tree_p1={count_tree_p1}'
+            output[5:] = output[5:]/count_tree_p1
+        return output, sim_array, sim_resp
+
+############################################################################################################
 
 def generate_mbt_ind_update(tree_ind):
     '''
