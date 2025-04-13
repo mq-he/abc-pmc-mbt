@@ -32,7 +32,7 @@ class ExpRunner:
         """
 
         print('\n' + '-' * 80)
-        print(f'RUNNING EXPERIMENT, TRIAL {0}:\n')
+        print(f'RUNNING EXPERIMENT, TRIAL {trial}:\n')
         print(self.exp.info())
 
         trial_path = os.path.join(self.file_path, str(trial))
