@@ -68,7 +68,6 @@ def dist2tip(tree, node):
         dist += item.dist
     return dist
 
-# updated
 def ratiodist(tree, shift=0.02):
     """Compute transition statistics that is the sum of
     -log(proportion)/(dist2tip(node)+shift) for all internal node"""
@@ -87,7 +86,6 @@ def ratiodist(tree, shift=0.02):
             stat2 += add2
     return stat,stat2
 
-# updated
 def trans(t):
     size=len(t.get_leaves())
     tran1,tran2=ratiodist(t)
