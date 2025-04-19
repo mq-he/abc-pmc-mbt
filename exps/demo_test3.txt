@@ -2,7 +2,7 @@ experiment
 {
 	model: reducible,
 	n_trees: 100,
-    n_leaves: 20,
+    n_leaves: 50,
     true_ps: [1.5,0.5,0.51,0.15,0.25],
     prior_bound_l: [0]*5,
     prior_bound_u: [5]*5,

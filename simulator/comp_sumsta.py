@@ -436,6 +436,7 @@ def generate_mbt_data_reducible_update_nLTT(sample, num_tree=100, treesize = 50,
         if output[5]>0:
             assert count_tree_p1>0, f'count_tree_p1={count_tree_p1}'
             output[5:] = output[5:]/count_tree_p1
+        sim_resp = sim_resp/num_tree
         return output, sim_array, sim_resp
 
 ############################################################################################################
