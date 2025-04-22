@@ -1,4 +1,4 @@
-# inference process for irreducible processes
+# inference process for reducible processes
 import random
 import numpy as np
 from statistics import variance
