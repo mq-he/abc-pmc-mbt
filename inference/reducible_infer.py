@@ -16,18 +16,8 @@ from .io import save
 # write a function for the inference algorithm
 def infer(obs_trees, experiment, trial_path):
     # assign values to all arguments in the inference process
-    if experiment.n_trees == 1:
-        _reducible_infer_onetree(obs_trees, experiment, trial_path)
-    else:
-        _reducible_infer_multitree(obs_trees, experiment, trial_path)
+    _reducible_infer_multitree(obs_trees, experiment, trial_path)
 
-
-def _reducible_infer_onetree(obs_tree, experiment, trial_path):
-    """
-    obs_tree: a single observed tree
-    experiment: an ExpDescriptor object
-    """
-    pass
 
 
 
@@ -39,6 +29,8 @@ def _reducible_infer_multitree(obs_trees, experiment, trial_path):
     trial_path = os.path.join(trial_path, 'results') # the path to the results
 
     n_trees = experiment.n_trees # the number of trees in the observed dataset
+    if n_trees < 3:
+        raise ValueError("{n_trees} observed trees are insufficient for inference under reducible processes.")
     assert n_trees == len(obs_trees)
 
     N_PAR = 5
