@@ -18,28 +18,47 @@ class ExpDescriptor:
     Set up the model and the inference process
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, test):
 
-        self.parse(filename)
+        self.parse(filename, test)
     
-    def parse(self, filename):
+    def parse(self, filename, test):
         with open(filename, 'r') as f:
             content = f.read()
         raw = re.sub(r'\s+', '', content) # remove white space
-        m = re.match(r'experiment\{model:(reducible|irreducible),n_trees:(.*),n_leaves:(.*),true_ps:(.*),prior_bound_l:(.*),prior_bound_u:(.*),start_phase:(.*),abc:(.*)\}\Z', raw)
+        self.test = test
+        if test == "simulation":
+            m = re.match(r'experiment\{model:(reducible|irreducible),n_trees:(.*),n_leaves:(.*),true_ps:(.*),prior_bound_l:(.*),prior_bound_u:(.*),start_phase:(.*),abc:(.*)\}\Z', raw)
+            self.model = m.group(1)
+            self.n_trees = int(m.group(2))
+            self.n_leaves = int(m.group(3))
+            self.true_ps = eval(m.group(4))
+            self.prior_bound_l = eval(m.group(5))
+            self.prior_bound_u = eval(m.group(6))
+            self.start_phase = int(m.group(7))
+            m_abc_raw = m.group(8)
+
+        elif test == "tree":
+            m = re.match(r'experiment\{model:(reducible|irreducible),n_trees:(.*),n_leaves:(.*),obs_simulated:(True|False),prior_bound_l:(.*),prior_bound_u:(.*),start_phase:(.*),abc:(.*)\}\Z', raw)
+            self.model = m.group(1)
+            self.n_trees = int(m.group(2))
+            self.n_leaves = int(m.group(3))
+            obs_simulated = m.group(4).lower()
+            self.obs_simulated = obs_simulated in ['true','t'] # True if the simulated observed values are used (e.g., from the experiments we did earlier)
+            self.prior_bound_l = eval(m.group(5))
+            self.prior_bound_u = eval(m.group(6))
+            self.start_phase = int(m.group(7))
+            m_abc_raw = m.group(8)
+        else:
+            raise ValueError("Incorrect input for parse function, the test can either be 'simulation' or 'tree'.")
         if m is None:
             raise ParseError(raw)
-        m_abc = re.match(r'\{num_accept:(.*),n_iter:(.*),n_trees_iter:(.*),print_iter:(.*),T_nltt:(.*),tol_nltt:(.*),threshold_rate:(.*),decrease_factor:(.*)\}\Z', m.group(8))
+        
+        m_abc = re.match(r'\{num_accept:(.*),n_iter:(.*),n_trees_iter:(.*),print_iter:(.*),T_nltt:(.*),tol_nltt:(.*),threshold_rate:(.*),decrease_factor:(.*)\}\Z', m_abc_raw)
         if m_abc is None:
-            raise ParseError(m.group(7))
+            raise ParseError(m_abc_raw)
 
-        self.model = m.group(1)
-        self.n_trees = int(m.group(2))
-        self.n_leaves = int(m.group(3))
-        self.true_ps = eval(m.group(4))
-        self.prior_bound_l = eval(m.group(5))
-        self.prior_bound_u = eval(m.group(6))
-        self.start_phase = int(m.group(7))
+        
         self.num_accept = eval(m_abc.group(1)) # a list for accepted
         self.n_iter = int(m_abc.group(2))
         self.n_trees_iter = eval(m_abc.group(3))
@@ -56,41 +75,17 @@ class ExpDescriptor:
 
     def get_dir(self):
         # path to save the results
-        return os.path.join(f'{self.model}', 'simulation_study', f'mbt_n{self.n_trees}_s{self.n_leaves}_T{self.n_iter}')
+        if self.test == "simulation":
+            return os.path.join(f'{self.model}', 'simulation_study', f'mbt_n{self.n_trees}_s{self.n_leaves}_sf{self.start_phase}_T{self.n_iter}')
+        else:
+            return os.path.join(f'{self.model}', 'infer_from_tree', f'sf{self.start_phase}_T{self.n_iter}')
 
     def info(self):
-        info_string = f"Dataset has {self.n_trees} trees with {self.n_leaves} leaves, starting in phase {self.start_phase}.\nTrue values:{self.true_ps}\nPrior lower bound:{self.prior_bound_l}\nPrior upper bound:{self.prior_bound_u}"
+        if self.test == "simulation":
+            info_string = f"Dataset has {self.n_trees} trees with {self.n_leaves} leaves, starting in phase {self.start_phase}.\nTrue values:{self.true_ps}\nPrior lower bound:{self.prior_bound_l}\nPrior upper bound:{self.prior_bound_u}"
+        else: 
+            info_string = f"Dataset has {self.n_trees} trees with {self.n_leaves} leaves, starting in phase {self.start_phase}.\nPrior lower bound:{self.prior_bound_l}\nPrior upper bound:{self.prior_bound_u}"
         return info_string
 
-# def parse(filename):
-#     #filename = 'demo_exp_multitrees.txt'
-#     with open(filename, 'r') as f:
-#         content = f.read()
-#     raw = re.sub(r'\s+', '', content) # remove white space
-#     m = re.match(r'experiment\{model:(reducible|irreducible),n_trees:(.*),n_leaves:(.*),true_ps:(.*),prior_bound_l:(.*),prior_bound_u:(.*),abc:(.*)\}\Z', raw)
-#     m_abc = re.match(r'\{num_accept:(.*),n_iter:(.*),n_trees_iter:(.*),print_iter:(.*),T_nltt:(.*),tol_nltt:(.*),threshold_rate:(.*),decrease_factor:(.*)\}\Z', m.group(7))
 
-#     # Create output container
-#     output = SimpleNamespace()
-
-#     # make sure all variables has the correct type 
-#     output.n_trees = int(m.group(2))
-#     output.n_leaves = int(m.group(3))
-#     output.true_ps = eval(m.group(4))
-#     output.prior_bound_l = eval(m.group(5))
-#     output.prior_bound_u = eval(m.group(6))
-#     output.num_accept = eval(m_abc.group(1)) # a list for accepted
-#     output.n_iter = int(m_abc.group(2))
-#     output.n_trees_iter = eval(m_abc.group(3))
-#     output.print_iter = True if m_abc.group(4).lower()=='true' else False
-#     output.T_nltt = int(m_abc.group(5))
-#     output.tol_nltt = float(m_abc.group(6))
-#     output.threshold_rate = float(m_abc.group(7))
-#     output.decrease_factor = float(m_abc.group(8))
-
-#     # sanity checks
-#     assert len(output.num_accept) == output.n_iter
-#     assert len(output.n_trees_iter) == output.n_iter
-
-#     return output
 

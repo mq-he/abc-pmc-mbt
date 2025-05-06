@@ -7,11 +7,12 @@ def run_experiment(args):
     """
     from exp_runner import ExpRunner
 
-    experiment = ExpDescriptor(args.files[0])
+    experiment = ExpDescriptor(args.files[0], "simulation")
 
     ExpRunner(experiment).run(trial=0)
 
     print('ALL DONE')
+
 
 def run_trials(args):
     """
@@ -26,11 +27,43 @@ def run_trials(args):
     if args.end < args.start:
         raise ValueError('end trial can''t be less than start trial')
 
-    experiment = ExpDescriptor(args.files[0])
+    experiment = ExpDescriptor(args.files[0], "simulation")
 
     for trial in range(args.start, args.end + 1):
 
         ExpRunner(experiment).run(trial=trial)
+
+    print('ALL DONE')
+
+def run_tree(args):
+    """
+    Runs experiments with the observed tree(s) and the associated phases.
+    """
+    from exp_runner import ExpRunner
+
+    experiment = ExpDescriptor(args.files[0], "tree")
+
+    ExpRunner(experiment).run(trial=0, sim_obs=False, tree_file=args.tree_file, phase_file=args.phase_file)
+
+    print('ALL DONE')
+
+def run_tree_trials(args):
+    """
+    Runs experiments with the observed tree(s) and the associated phases for multiple trials.
+    """
+    from exp_runner import ExpRunner
+
+    experiment = ExpDescriptor(args.files[0], "tree")
+
+    if args.start < 1:
+        raise ValueError('trial # must be a positive integer')
+
+    if args.end < args.start:
+        raise ValueError('end trial can''t be less than start trial')
+
+    for trial in range(args.start, args.end + 1):
+
+        ExpRunner(experiment).run(trial=trial, sim_obs=False, tree_file=args.tree_file, phase_file=args.phase_file)
 
     print('ALL DONE')
 
@@ -50,6 +83,20 @@ def parse_args():
     parser_trials.add_argument('end', type=int, help='# of last trial')
     parser_trials.add_argument('files', nargs='+', type=str, help='file(s) describing experiments')
     parser_trials.set_defaults(func=run_trials)
+
+    parser_trials = subparsers.add_parser('infer', help='infer the parameter values using the observed tree(s)')
+    parser_trials.add_argument('tree_file', type=str, help='file for the observed tree structure (newick format)')
+    parser_trials.add_argument('phase_file', type=str, help='file for the tip phases (leave name match with the ones in tree_file)')
+    parser_trials.add_argument('files', nargs='+', type=str, help='file(s) describing experiments')
+    parser_trials.set_defaults(func=run_tree)
+
+    parser_trials = subparsers.add_parser('infer_trials', help='infer the parameter values using the observed tree(s) -- repeated trials')
+    parser_trials.add_argument('tree_file', type=str, help='file for the observed tree structure (newick format)')
+    parser_trials.add_argument('phase_file', type=str, help='file for the tip phases (leave name match with the ones in tree_file)')
+    parser_trials.add_argument('start', type=int, help='# of first trial')
+    parser_trials.add_argument('end', type=int, help='# of last trial')
+    parser_trials.add_argument('files', nargs='+', type=str, help='file(s) describing experiments')
+    parser_trials.set_defaults(func=run_tree_trials)
 
     return parser.parse_args()
 

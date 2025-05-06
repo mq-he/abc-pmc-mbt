@@ -29,8 +29,6 @@ def _reducible_infer_multitree(obs_trees, experiment, trial_path):
     trial_path = os.path.join(trial_path, 'results') # the path to the results
 
     n_trees = experiment.n_trees # the number of trees in the observed dataset
-    if n_trees < 3:
-        raise ValueError("{n_trees} observed trees are insufficient for inference under reducible processes.")
     assert n_trees == len(obs_trees)
 
     N_PAR = 5
